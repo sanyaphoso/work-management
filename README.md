@@ -1,4 +1,16 @@
 # Work Management
+Work Management is designed to help teams plan, track, and deliver work efficiently. It allows users to organize tasks, projects, and workflows in a visual and customizable way.
+
+Key features include:
+
+- **Boards** – Centralized workspaces for managing tasks. Each board contains multiple groups and items.
+- **Groups** – Sections within a board used to categorize tasks (e.g., by status, phase, or team).
+- **Items** – Individual tasks or work units, each with customizable columns such as Person, Status, Date, etc.
+- **Custom Columns** – Track progress, assign team members, set deadlines, and manage task-specific data.
+- **Drag-and-Drop Interface** – Easily rearrange items or move them between groups.
+- **Views** – Support for multiple visualizations like Table, Kanban, Calendar, or Timeline views.
+
+This project focuses on building a core **Work Management** experience, including boards, groups, and items — with an emphasis on simplicity, intuitive interaction, and user-specific data visibility.
 
 ## How to Run the Project
 
