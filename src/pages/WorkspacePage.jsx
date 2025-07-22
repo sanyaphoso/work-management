@@ -96,7 +96,13 @@ export default function WorkspacePage() {
             {
               key: "recents",
               label: "Recents",
-              children: <RecentTab onCreate={handleCreateBoard} />,
+              // children: <RecentTab onCreate={handleCreateBoard} />,
+              children: (
+                <RecentTab
+                  onCreate={handleCreateBoard}
+                  workspaceId={workspace.id} // ✅ เพิ่มตรงนี้
+                />
+              ),
             },
             {
               key: "permissions",
@@ -132,9 +138,33 @@ export default function WorkspacePage() {
 }
 
 // 👉 Recents tab content
-function RecentTab({ onCreate }) {
+function RecentTab({ onCreate, workspaceId }) {
+  const [boards, setBoards] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchBoards = async () => {
+      const { data, error } = await supabase
+        .from("boards")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching boards:", error);
+      } else {
+        setBoards(data);
+      }
+    };
+
+    if (workspaceId) {
+      fetchBoards();
+    }
+  }, [workspaceId]);
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6">
+      {/* Add new board */}
       <div
         className="border rounded-lg p-6 flex flex-col items-center justify-center hover:shadow cursor-pointer"
         onClick={onCreate}
@@ -142,10 +172,21 @@ function RecentTab({ onCreate }) {
         <div className="text-3xl mb-2">➕</div>
         <Text>Add new board</Text>
       </div>
-      <div className="border rounded-lg p-6 flex flex-col items-center justify-center hover:shadow cursor-pointer">
-        <div className="text-xl mb-2">📄</div>
-        <Text>Start from a template</Text>
-      </div>
+
+      {/* List of existing boards */}
+      {boards.map((board) => (
+        <div
+          key={board.id}
+          className="border rounded-lg p-6 flex flex-col items-center justify-center hover:shadow cursor-pointer"
+          onClick={() => navigate(`/board/${board.id}`)}
+        >
+          <Text className="text-lg font-semibold">{board.name}</Text>
+          <Text className="text-sm text-gray-500 mt-1">
+            Created: {new Date(board.created_at).toLocaleDateString()}
+          </Text>
+        </div>
+      ))}
+      
     </div>
   );
 }
