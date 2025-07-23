@@ -38,7 +38,9 @@ export default function WorkspacePage() {
   const handleSubmitBoard = async () => {
     try {
       const values = await form.validateFields();
-      const { data, error } = await supabase
+
+      // 👉 1. Create board
+      const { data: board, error: boardError } = await supabase
         .from("boards")
         .insert([
           {
@@ -49,13 +51,132 @@ export default function WorkspacePage() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (boardError) throw boardError;
 
-      message.success("Board created");
+      const boardId = board.id;
+
+       // 👉 2. Create default columns
+      const { data: columns, error: columnsError } = await supabase
+        .from("columns")
+        .insert([
+          { board_id: boardId, title: "Item", data_type: "text", order: 1 },
+          { board_id: boardId, title: "Person", data_type: "person", order: 2 },
+          { board_id: boardId, title: "Status", data_type: "status", order: 3 },
+          { board_id: boardId, title: "Date", data_type: "date", order: 4 },
+        ])
+        .select();
+
+      if (columnsError) throw columnsError;
+
+      // 👉 2. Create default groups
+      const defaultGroups = [
+        {
+          board_id: board.id,
+          title: "Group 1",
+          order: 1,
+        },
+        {
+          board_id: board.id,
+          title: "Group 2",
+          order: 2,
+        },
+      ];
+
+      // const { error: groupError } = await supabase
+      //   .from("groups")
+      //   .insert(defaultGroups);
+      const { data: createdGroups, error: groupError } = await supabase
+        .from("groups")
+        .insert(defaultGroups)
+        .select();
+
+      if (groupError) throw groupError;
+
+      // 👉 4. Sample items
+      const sampleItems = [
+        { title: "Item 1", person: true, status: "Working on it", date: "Jul 13" },
+        { title: "Item 2", person: true, status: "Done", date: "Jul 14" },
+        { title: "Item 3", person: true, status: "Default", date: "Jul 16" },
+      ];
+
+      // 👉 5. For each group, create items & item_values
+      for (const group of createdGroups) {
+        for (const item of sampleItems) {
+          // Create item
+          const { data: createdItem, error: itemError } = await supabase
+            .from("items")
+            .insert([
+              {
+                title: item.title,
+                group_id: group.id,
+                board_id: boardId,
+              },
+            ])
+            .select()
+            .single();
+
+          if (itemError) throw itemError;
+
+          // Insert item_values
+          const itemValues = columns.map((column) => {
+            let value = "";
+
+            switch (column.title.toLowerCase()) {
+              case "item":
+                value = item.title;
+                break;
+              case "person":
+                value = item.person ? "Assigned" : "Unassigned";
+                break;
+              case "status":
+                value = item.status;
+                break;
+              case "date":
+                value = item.date;
+                break;
+              default:
+                value = "";
+            }
+
+            return {
+              item_id: createdItem.id,
+              column_id: column.id,
+              value,
+            };
+          });
+
+          const { error: valueError } = await supabase
+            .from("item_values")
+            .insert(itemValues);
+
+          if (valueError) throw valueError;
+        }
+      }
+
+      // ✅ Success
+      message.success("Board created with default groups, columns, and items");
       setIsModalOpen(false);
-      navigate(`/board/${data.id}`);
+      navigate(`/board/${boardId}`);
+
+      // const { data, error } = await supabase
+      //   .from("boards")
+      //   .insert([
+      //     {
+      //       name: values.name,
+      //       workspace_id: id,
+      //     },
+      //   ])
+      //   .select()
+      //   .single();
+
+      // if (error) throw error;
+
+      // message.success("Board created");
+      // setIsModalOpen(false);
+      // navigate(`/board/${data.id}`);
     } catch (err) {
-      message.error(err.message);
+      console.error(err);
+      message.error(err.message || "Something went wrong");
     }
   };
 
@@ -190,4 +311,95 @@ function RecentTab({ onCreate, workspaceId }) {
     </div>
   );
 }
+
+async function createGroupWithItems(groupName, boardId) {
+  // 1. สร้าง group
+  const { data: group, error: groupError } = await supabase
+    .from("groups")
+    .insert([{ name: groupName, board_id: boardId }])
+    .select()
+    .single();
+
+  if (groupError) throw groupError;
+
+  // 2. ดึง columns ของ board นั้น
+  const { data: columns, error: columnsError } = await supabase
+    .from("columns")
+    .select("*")
+    .eq("board_id", boardId);
+
+  if (columnsError) throw columnsError;
+
+  const sampleItems = [
+    {
+      title: "Item 1",
+      person: true,
+      status: "Working on it",
+      date: "Jul 13",
+    },
+    {
+      title: "Item 3",
+      person: true,
+      status: "Default",
+      date: "Jul 16",
+    },
+    {
+      title: "Item 2",
+      person: true,
+      status: "Done",
+      date: "Jul 13",
+    },
+  ];
+
+  // 3. สำหรับแต่ละ item
+  for (const item of sampleItems) {
+    // 3.1 สร้าง item
+    const { data: createdItem, error: itemError } = await supabase
+      .from("items")
+      .insert([
+        {
+          title: item.title,
+          group_id: group.id,
+          board_id: boardId,
+        },
+      ])
+      .select()
+      .single();
+
+    if (itemError) throw itemError;
+
+    // 3.2 เพิ่ม item_values สำหรับทุก column
+    for (const column of columns) {
+      let value = "";
+
+      switch (column.title.toLowerCase()) {
+        case "item":
+          value = item.title;
+          break;
+        case "person":
+          value = item.person ? "Assigned" : "Unassigned";
+          break;
+        case "status":
+          value = item.status;
+          break;
+        case "date":
+          value = item.date;
+          break;
+        default:
+          value = "";
+      }
+
+      await supabase.from("item_values").insert([
+        {
+          item_id: createdItem.id,
+          column_id: column.id,
+          value: value,
+        },
+      ]);
+    }
+  }
+
+  return group;
+}
+
 
