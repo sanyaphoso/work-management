@@ -3,8 +3,16 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Typography, Button, Table, Tag, Input, Collapse, message } from "antd";
 import { supabase } from "../lib/supabase";
-import { PlusOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  SortAscendingOutlined,
+  EyeInvisibleOutlined,
+  FolderOpenOutlined,
+} from "@ant-design/icons";
 import BoardGroup from "../components/BoardGroup";
+import BoardHeader from "../components/BoardHeader";
 
 const { Title } = Typography;
 
@@ -12,6 +20,15 @@ export default function BoardPage() {
   const { id } = useParams(); // เพิ่มบรรทัดนี้
   const [boardName, setBoardName] = useState(""); // state สำหรับชื่อ board
   const [groups, setGroups] = useState([]);
+  const [board, setBoard] = useState(null);
+
+  const tools = [
+    { icon: <SearchOutlined />, label: "Search" },
+    { icon: <FilterOutlined />, label: "Filter" },
+    { icon: <SortAscendingOutlined />, label: "Sort" },
+    { icon: <EyeInvisibleOutlined />, label: "Hide" },
+    { icon: <FolderOpenOutlined />, label: "Group by" },
+  ];
 
   // const [groups, setGroups] = useState([
   //   {
@@ -39,14 +56,14 @@ export default function BoardPage() {
     const fetchBoard = async () => {
       const { data, error } = await supabase
         .from("boards")
-        .select("name")
+        .select("*")
         .eq("id", id)
         .single();
 
       if (error) {
         console.error("Error fetching board:", error);
       } else {
-        setBoardName(data.name);
+        setBoard(data);
       }
     };
 
@@ -102,12 +119,25 @@ export default function BoardPage() {
     if (id) fetchBoardData();
   }, [id]);
 
+  if (!board) return <div className="p-6">Loading...</div>;
 
   return (
     <div className="p-6">
       {/* ✅ Header แสดงชื่อ Board */}
-      <div className="flex justify-between items-center mb-6">
+      {/* <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl">{boardName}</h1>
+      </div> */}
+      <BoardHeader board={board} />
+      <div className="flex items-center gap-4 px-6 py-2">
+        {tools.map((tool) => (
+          <button
+            key={tool.label}
+            className="flex items-center gap-1 text-sm text-gray-700 hover:bg-gray-100 px-3 py-1 rounded"
+          >
+            {tool.icon}
+            <span>{tool.label}</span>
+          </button>
+        ))}
       </div>
       {/* ✅ Groups */}
       {/* <BoardGroup groupName="Marketing Tasks" />
@@ -118,7 +148,11 @@ export default function BoardPage() {
         <BoardGroup key={group.id} groupName={group.title} />
       ))} */}
       {groups.map((group) => (
-        <BoardGroup key={group.id} groupName={group.title} items={group.items || []} />
+        <BoardGroup
+          key={group.id}
+          groupName={group.title}
+          items={group.items || []}
+        />
       ))}
     </div>
   );
